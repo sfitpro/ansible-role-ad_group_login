@@ -1,0 +1,36 @@
+---
+# tasks file for ad_group_login
+- name: replace each space with \space, each ( with \(, each ) with \) in ad_group_name
+  ansible.builtin.set_fact:
+    ad_group_name_regexp: "{{ ad_group_name | regex_escape() }}"
+
+- name: display ad_group_name_regexp
+  ansible.builtin.debug:
+    msg: "{{ ad_group_name_regexp }}"
+
+- name: check if ad_group_name is defined in /etc/sssd/sssd.conf file's simple_allow_groups
+  become: true
+  ansible.builtin.lineinfile:
+    path: "/etc/sssd/sssd.conf"
+    state: absent
+    regexp: "^\\s{0,}simple_allow_groups = .*{{ ad_group_name_regexp }}.*$"
+    backup: false
+  check_mode: true
+  changed_when: false
+  register: check
+
+- name: display check result
+  ansible.builtin.debug:
+    msg: "{{ check.found }}"
+
+- name: when ad_group_name is missing, append it to /etc/sssd/sssd.conf file's simple_allow_groups
+  become: true
+  ansible.builtin.lineinfile:
+    path: "/etc/sssd/sssd.conf"
+    state: present
+    backrefs: true
+    regexp: "^(\\s{0,}simple_allow_groups = .*)$"
+    line: "\\1,{{ ad_group_name }}"
+    backup: true
+  when: check.found == 0
+  notify: restart sssd

@@ -1,0 +1,7 @@
+---
+# handlers file for ad_group_login
+- name: restart sssd
+  become: true
+  ansible.builtin.service:
+    name: sssd
+    state: restarted
